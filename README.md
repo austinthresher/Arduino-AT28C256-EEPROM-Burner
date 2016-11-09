@@ -1,5 +1,5 @@
 # Arduino-AT28C256-EEPROM-Burner
-This is a simple command line EEPROM burner / reader using an atmega238 for the AT28C256 and similar EEPROMs.
+This is a simple command line EEPROM burner / reader using an atmega328 for the AT28C256 and similar EEPROMs.
 
 It builds and runs on Debian. I have not tested it on other platforms.
 
