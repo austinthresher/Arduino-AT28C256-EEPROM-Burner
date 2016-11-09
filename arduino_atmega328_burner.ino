@@ -64,6 +64,7 @@ inline void setAddrBus(ushort addr) FORCE_INLINE;
 inline void setDataBus(byte val) FORCE_INLINE;
 inline void setWriteMode() FORCE_INLINE;
 inline void setReadMode() FORCE_INLINE;
+inline void writePage(ushort address, byte *buffer, int num) FORCE_INLINE;
 inline void writeToAddr(ushort address, byte value) FORCE_INLINE;
 inline byte readFromAddr(ushort address) FORCE_INLINE;
 inline byte readDataBus() FORCE_INLINE;
@@ -216,7 +217,6 @@ void setReadMode() {
 // -------------
 
 void writePage(ushort address, byte *buffer, int num) {
-   digitalWrite(READ_PIN, LOW);
    digitalWrite(CHIP_PIN, HIGH);
    digitalWrite(WRITE_PIN, HIGH);
    digitalWrite(READ_PIN, HIGH);
@@ -236,7 +236,6 @@ void writePage(ushort address, byte *buffer, int num) {
 // Writes a byte using BUFFER_SIZE write timing.
 // Data pins must be in write mode before calling this.
 void writeToAddr(ushort address, byte value) {
-   digitalWrite(READ_PIN, LOW);
    digitalWrite(CHIP_PIN, HIGH);
    digitalWrite(WRITE_PIN, HIGH);
    digitalWrite(READ_PIN, HIGH);
