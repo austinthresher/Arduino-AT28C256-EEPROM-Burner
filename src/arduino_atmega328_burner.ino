@@ -32,7 +32,7 @@
 
 #define ushort uint16_t
 
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 64
 
 enum State {
    REST,
@@ -48,7 +48,6 @@ enum State {
 
 enum State state = REST;
 int blink_timer  = 0;
-int bytes_written   = 0;
 ushort addr      = 0x0000;
 byte data        = 0xFF;
 bool wait        = true;
@@ -222,12 +221,11 @@ void writePage(ushort address, byte *buffer, int num) {
    digitalWrite(READ_PIN, HIGH);
 
    for (int i = 0; i < num; ++i) {
-      setAddrBus(address + i);
-      setDataBus(buffer[i]);
-      delayMicroseconds(1);
       digitalWrite(CHIP_PIN, LOW);
+      setAddrBus(address + i);
       digitalWrite(WRITE_PIN, LOW);  
-      delayMicroseconds(1);
+      setDataBus(buffer[i]);
+//      delayMicroseconds(1);
       digitalWrite(WRITE_PIN, HIGH);
       digitalWrite(CHIP_PIN, HIGH);
    }
@@ -239,12 +237,11 @@ void writeToAddr(ushort address, byte value) {
    digitalWrite(CHIP_PIN, HIGH);
    digitalWrite(WRITE_PIN, HIGH);
    digitalWrite(READ_PIN, HIGH);
-   setAddrBus(address);
-   setDataBus(value);
-   delayMicroseconds(1);
    digitalWrite(CHIP_PIN, LOW);
+   setAddrBus(address);
    digitalWrite(WRITE_PIN, LOW);  
-   delayMicroseconds(1);
+   setDataBus(value);
+//   delayMicroseconds(1);
    digitalWrite(WRITE_PIN, HIGH);
    digitalWrite(CHIP_PIN, HIGH);
 }
@@ -270,7 +267,6 @@ byte readFromAddr(ushort address) {
 // This disables the write protect mode on the Atmel 28c256.
 // Write mode must be enabled before calling this.
 void disableProtectMode() {
-   digitalWrite(READ_PIN, HIGH);
    writeToAddr(0x5555, 0xAA);
    writeToAddr(0x2AAA, 0x55);
    writeToAddr(0x5555, 0x80);
@@ -340,12 +336,16 @@ void loop() {
             while (state == WRITE) {
                digitalWrite(CHIP_PIN,   HIGH);
                digitalWrite(WRITE_PIN,  HIGH);
-               digitalWrite(READ_PIN,   LOW);
+               digitalWrite(READ_PIN,   HIGH);
                int timeout = 0;
                int blinker = 0;
-               int curaddr = addr;
                // Send the current address to ensure we're synced
                Serial.write((byte*)&addr, 2);
+//               if (addr > 0x8000) {
+//                 state = REST;
+//                 wait = true;
+//                 break;
+//               }
                while (!Serial.available()) {
                   delay(1);
                   blinker++;
@@ -368,34 +368,25 @@ void loop() {
                   Serial.readBytes((char*)ascii_buffer, BUFFER_SIZE * 2); 
                fillBinBuffer(ascii_buffer, page_buffer, ascii_bytes);
                int bytes_to_write = ascii_bytes / 2;
-               bool validated = false;
-               while (!validated) {
-                  validated = true;
-                  digitalWrite(WRITE_LED, HIGH);
+               digitalWrite(WRITE_LED, HIGH);
+               for (int i = 0; i < bytes_to_write; ++i) {
                   setWriteMode();
-                  writePage(curaddr, page_buffer, bytes_to_write);
-                  delay(20);
-                  setReadMode();
-                  for (int i = 0; i < bytes_written; ++i) {
-                     byte val = readFromAddr(curaddr+i);
-                     if (val != page_buffer[i]) {
-                        if (validated) {
-                           addr = curaddr;
-                           validated = false;
-                        }
-                        digitalWrite(WRITE_LED, LOW);
-                        delay(50);
-                        digitalWrite(WRITE_LED, HIGH);
-                        break;
-                     }
+                  writeToAddr(addr, page_buffer[i]);
+                  addr++;
+               }
+               setReadMode();
+               bool done = false;
+               while (!done) {
+                  int check = readFromAddr(addr);
+                  // When bit 6 stops flipping, the write is done
+                  done = true;
+                  if ((check & 0x40) != (readFromAddr(addr) & 0x40)) {
+                     digitalWrite(READ_LED, HIGH);
+                     done = false;
                   }
-               }
-               addr += bytes_to_write;
-               if (addr >= 0x8000) {
-                 state = REST;
-                 wait = true;
-               }
-           }
+               }  
+               digitalWrite(READ_LED, LOW);
+            }
            break;
         case READ:
            while (state == READ) {
@@ -450,7 +441,6 @@ void serialEvent() {
          digitalWrite(WRITE_LED, HIGH);
          digitalWrite(READ_LED, LOW);
          setWriteMode();
-         bytes_written = BUFFER_SIZE;
          return;
       }
       state = ERR; 

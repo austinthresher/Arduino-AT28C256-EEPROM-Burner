@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define CHIP_SIZE 0x8000
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 64
 #define FILENAME "file.bin"
 
 enum Command {
@@ -171,6 +171,13 @@ int main(int argc, char** argv) {
    int recvd = 0;
    int file;
    switch (cmd) {
+      case ERASE:
+         printf("Not implemented yet.\n");
+         break;
+      case UNLOCK:
+         printf("Sending UNLOCK command\n");
+         send(com, "U", 1);
+         break;
       case READ:
          file = open(filename == NULL ? FILENAME : filename,
                O_RDWR | O_CREAT);
@@ -226,20 +233,20 @@ int main(int argc, char** argv) {
          while (addr < CHIP_SIZE) {
             uint16_t recvd_addr;
             read(com, &recvd_addr, 2);
+//            if (addr != recvd_addr) {
+//               fprintf(stderr, "Error: Address mismatch (%04X != %04X)\n",
+//                     recvd_addr, addr);
+//               close(file);
+//               close(com);
+//               exit(1);
+//            }
             addr = recvd_addr;
-            if (addr != recvd_addr) {
-               fprintf(stderr, "Error: Address mismatch (%04X != %04X)\n",
-                     recvd_addr, addr);
-               close(file);
-               close(com);
-               exit(1);
-            }
             printf("%04X ", addr);
             lseek(file, addr, SEEK_SET);
             read(file, buf, BUFFER_SIZE); // TODO: Check for EOF
             fill_ascii_buffer(buf, ascii_buf, BUFFER_SIZE);
             send(com, ascii_buf, BUFFER_SIZE * 2);
-            addr += BUFFER_SIZE;
+            //addr += BUFFER_SIZE;
             if (addr % 0x200 == 0) {
                printf("\n");
             }
