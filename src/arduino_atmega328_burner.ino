@@ -49,7 +49,6 @@ enum State {
 enum State state = REST;
 int blink_timer  = 0;
 ushort addr      = 0x0000;
-byte data        = 0xFF;
 bool wait        = true;
 byte page_buffer[64];
 byte ascii_buffer[128];
@@ -177,10 +176,17 @@ void setAddrBus(ushort addr) {
 
 // Places the byte on the data bus.
 void setDataBus(byte val) {
-   digitalWrite(8, (val >> 6) & 0x01);
-   digitalWrite(9, (val >> 7) & 0x01);
+   digitalWrite(2, val & 1);
+   digitalWrite(3, (val >> 1) & 1);
+   digitalWrite(4, (val >> 2) & 1);
+   digitalWrite(5, (val >> 3) & 1);
+   digitalWrite(6, (val >> 4) & 1);
+   digitalWrite(7, (val >> 5) & 1);
+   digitalWrite(8, (val >> 6) & 1);
+   digitalWrite(9, (val >> 7) & 1);
+
    // MEEPROMMER doesn't mask PIND, this fixes some bad writes
-   PORTD = (PIND & 3) | (val << 2); 
+//   PORTD = (PIND & 3) | (val << 2); 
 }
 
 byte readDataBus() {
@@ -290,9 +296,10 @@ void setup() {
    pinMode(CHIP_PIN,   OUTPUT);
    pinMode(WRITE_LED,  OUTPUT);
    pinMode(READ_LED,   OUTPUT);
-   digitalWrite(READ_PIN,   HIGH);
-   digitalWrite(CHIP_PIN,   HIGH);
-   digitalWrite(WRITE_PIN,  HIGH);
+   digitalWrite(READ_PIN,  HIGH);
+   digitalWrite(CHIP_PIN,  HIGH);
+   digitalWrite(WRITE_PIN, HIGH);
+   digitalWrite(SHIFT_PIN, HIGH);
 
    Serial.begin(9600);
 }
@@ -369,8 +376,8 @@ void loop() {
                fillBinBuffer(ascii_buffer, page_buffer, ascii_bytes);
                int bytes_to_write = ascii_bytes / 2;
                digitalWrite(WRITE_LED, HIGH);
+               setWriteMode();
                for (int i = 0; i < bytes_to_write; ++i) {
-                  setWriteMode();
                   writeToAddr(addr, page_buffer[i]);
                   addr++;
                }
@@ -415,7 +422,6 @@ void serialEvent() {
       case 'R': // Read EEPROM contents
          state = READ;
          addr  = 0x0000;
-         data  = 0x00;
          wait  = false;
          setReadMode();
          digitalWrite(WRITE_LED, LOW);
@@ -434,9 +440,12 @@ void serialEvent() {
          wait = true;
          return;
       case 'W': // Write data to EEPROM 
+         // Don't accidentally write anything sent so far to the chip
+         while (Serial.available() > 0) {
+            Serial.read();
+         }
          state = WRITE;
          addr  = 0x0000;
-         data  = 0x00;
          wait  = false;
          digitalWrite(WRITE_LED, HIGH);
          digitalWrite(READ_LED, LOW);
