@@ -166,8 +166,9 @@ int main(int argc, char** argv) {
    sleep(2);
 
    uint8_t buf[BUFFER_SIZE];
+   uint16_t addr  = 0;
    char ascii_buf[BUFFER_SIZE * 2];
-   int addr  = 0;
+   char addr_buf[4];
    int recvd = 0;
    int file;
    switch (cmd) {
@@ -232,21 +233,23 @@ int main(int argc, char** argv) {
          printf("Sending data\n");
          while (addr < CHIP_SIZE) {
             uint16_t recvd_addr;
-            read(com, &recvd_addr, 2);
-//            if (addr != recvd_addr) {
-//               fprintf(stderr, "Error: Address mismatch (%04X != %04X)\n",
-//                     recvd_addr, addr);
-//               close(file);
-//               close(com);
-//               exit(1);
-//            }
+            read(com, addr_buf, 4);
+            recvd_addr = 
+                    ascii_to_nibble(addr_buf[3])
+                |  (ascii_to_nibble(addr_buf[2]) << 4)
+                |  (ascii_to_nibble(addr_buf[1]) << 8)
+                |  (ascii_to_nibble(addr_buf[0]) << 12);
+            if (addr != recvd_addr) {
+               fprintf(stderr, "Error: Address mismatch (%04X != %04X)\n",
+                     recvd_addr, addr);
+            }
             addr = recvd_addr;
             printf("%04X ", addr);
             lseek(file, addr, SEEK_SET);
             read(file, buf, BUFFER_SIZE); // TODO: Check for EOF
             fill_ascii_buffer(buf, ascii_buf, BUFFER_SIZE);
             send(com, ascii_buf, BUFFER_SIZE * 2);
-            //addr += BUFFER_SIZE;
+            addr += BUFFER_SIZE;
             if (addr % 0x200 == 0) {
                printf("\n");
             }

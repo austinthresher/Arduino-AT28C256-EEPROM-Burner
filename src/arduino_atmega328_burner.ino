@@ -52,6 +52,7 @@ ushort addr      = 0x0000;
 bool wait        = true;
 byte page_buffer[64];
 byte ascii_buffer[128];
+byte addr_buffer[4];
 
 // -------------------
 // Function prototypes
@@ -347,14 +348,13 @@ void loop() {
                int timeout = 0;
                int blinker = 0;
                // Send the current address to ensure we're synced
-               Serial.write((byte*)&addr, 2);
-//               if (addr > 0x8000) {
-//                 state = REST;
-//                 wait = true;
-//                 break;
-//               }
+               addr_buffer[3] = nibbleToASCII(addr & 0x000F);
+               addr_buffer[2] = nibbleToASCII((addr >> 4) & 0x000F);
+               addr_buffer[1] = nibbleToASCII((addr >> 8) & 0x000F);
+               addr_buffer[0] = nibbleToASCII((addr >> 12) & 0x000F);
+               Serial.write(addr_buffer, 4);
                while (!Serial.available()) {
-                  delay(1);
+                  delay(5);
                   blinker++;
                   if (blinker > 200) {
                      blinker = 0;
